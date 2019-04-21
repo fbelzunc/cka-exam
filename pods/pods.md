@@ -64,6 +64,28 @@ spec:
     disktype: ssd
 ```
 
+## Add multi commands to a pod
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: busybox
+  name: busybox
+spec:
+  containers:
+  - image: busybox
+    name: busybox
+    command: ["/bin/sh","-c","touch /cache/test.txt && sleep 3600"]
+    volumeMounts:
+    - mountPath: /cache
+      name: cache-volume
+  volumes:
+  - name: cache-volume
+    emptyDir: {}
+```
+
 
 
 
