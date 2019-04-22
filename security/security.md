@@ -47,7 +47,7 @@ Error from server (Forbidden): pods is forbidden: User "system:serviceaccount:fb
 kubectl-user -n fbelzunc get pods
 No resources found.
 
-kubectl-user run -n fbelzunc busybox --image=busybox --generator=run-pod/v1 -- sleep 3600
+kubectl-user run busybox --image=busybox --generator=run-pod/v1 -- sleep 3600
 Error from server (Forbidden): pods "busybox" is forbidden: unable to validate against any pod security policy: []
 ```
 
@@ -246,8 +246,67 @@ kubectl exec -it busybox -- id
 uid=1000 gid=0(root) groups=2000
 ```
 
-
-
 ## Secure persistent key value store.
 
 ## Work with role-based access control.
+
+Reference: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+
+### Create a Role named “pod-reader” that allows user to perform “get”, “watch” and “list” on pods in a specific namespace
+
+```
+# Create the serviceaccount fake-user
+kubectl -n fbelzunc create serviceaccount fake-user
+
+# Create the role pod-reader
+kubectl -n fbelzunc create role pod-reader --verb=get --verb=list --verb=watch --resource=pods
+
+# Create the rolebinding pod-reader:fake-user
+kubectl -n fbelzunc create rolebinding pod-reader:fake-user --serviceaccount=fbelzunc:fake-user --role=pod-reader
+```
+
+* Test that we can't create a pod with `kubectl-user`
+
+```
+kubectl-user -n fbelzunc run busybox --image=busybox --generator=run-pod/v1 -- sleep 3600
+Error from server (Forbidden): pods is forbidden: User "system:serviceaccount:fbelzunc:fake-user" cannot create resource "pods" in API group "" in the namespace "fbelzunc"
+```
+
+* Test that we can read a pod with `kubectl-user` 
+
+```
+# Create a pod with admin user
+kubectl -n fbelzunc run busybox --image=busybox --generator=run-pod/v1 -- sleep 3600
+
+# Read the pods inside the fbelzunc namespace with the kubectl-user
+kubectl-user get pod -n fbelzunc
+NAME      READY   STATUS    RESTARTS   AGE
+busybox   1/1     Running   0          2m52s
+```
+
+### Create a Role named “pod-reader” that allows user to perform “get”, “watch” and “list” on pods in all namespaces
+
+AFAIK Th ebelow does not make sense at all because serviceaccounts are always bound to a namespace
+
+```
+# Create the serviceaccount fake-user
+kubectl create serviceaccount fake-user
+
+# Create the corresponded clusterrole
+kubectl create clusterrole pod-reader --verb=get,list,watch --resource=pods
+
+# Create a rolebinding
+kubectl create rolebinding fake-user:pod-reader --clusterrole=pod-reader --serviceaccount=default:fake-user
+```
+
+```
+alias kubectl-user='kubectl --as=system:serviceaccount:default:fake-user'
+```
+
+### Across the entire cluster, grant the permissions in the cluster-admin ClusterRole to a user named “root”:
+
+### Grant a role to all service accounts in a namespace
+
+
+### Grant super-user access to all service accounts cluster-wide (strongly discouraged)
+
